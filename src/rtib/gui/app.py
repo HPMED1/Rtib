@@ -7,9 +7,9 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
-from rateb import __app_name__
-from rateb.gui.main_window import MainWindow
-from rateb.gui.theme import Theme, stylesheet_for
+from rtib import __app_name__
+from rtib.gui.main_window import MainWindow
+from rtib.gui.theme import Theme, stylesheet_for
 
 
 def run_gui() -> int:

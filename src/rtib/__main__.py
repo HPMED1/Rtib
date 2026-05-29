@@ -1,4 +1,4 @@
-from rateb.cli import main
+from rtib.cli import main
 
 if __name__ == "__main__":
     main()

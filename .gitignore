@@ -67,8 +67,8 @@ venv.bak/
 Thumbs.db
 desktop.ini
 
-# Rateb-specific
+# Rtib-specific
 # user-saved schemas / settings cache
-.rateb-cache/
+.rtib-cache/
 sample-data/private/
 .screenshots/

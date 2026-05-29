@@ -18,10 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from rateb import __app_name__, __version__
-from rateb.core.ollama_client import OllamaClient
-from rateb.core.settings import AppSettings
-from rateb.gui.theme import Theme, stylesheet_for
+from rtib import __app_name__, __version__
+from rtib.core.ollama_client import OllamaClient
+from rtib.core.settings import AppSettings
+from rtib.gui.theme import Theme, stylesheet_for
 
 
 class MainWindow(QMainWindow):

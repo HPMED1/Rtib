@@ -3,13 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rateb"
+name = "rtib"
 version = "0.0.1"
 description = "Local-first AI sorter/formatter for messy unstructured text"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "TBD" }
-authors = [{ name = "Rateb dev", email = "nerohpmed@gmail.com" }]
+authors = [{ name = "Rtib dev", email = "nerohpmed@gmail.com" }]
 keywords = ["llm", "ollama", "structured-output", "data-cleaning", "etl"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -36,16 +36,16 @@ dev = [
 ]
 
 [project.scripts]
-rateb = "rateb.cli:main"
+rtib = "rtib.cli:main"
 
 [project.gui-scripts]
-rateb-gui = "rateb.cli:gui_main"
+rtib-gui = "rtib.cli:gui_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-rateb = ["resources/icons/*", "resources/styles/*"]
+rtib = ["resources/icons/*", "resources/styles/*"]
 
 [tool.ruff]
 line-length = 100

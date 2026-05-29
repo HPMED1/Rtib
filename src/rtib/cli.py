@@ -1,6 +1,6 @@
 """Command-line entry point.
 
-`rateb` with no arguments opens the GUI. Batch flags (`--input`, `--output`)
+`rtib` with no arguments opens the GUI. Batch flags (`--input`, `--output`)
 will be implemented when the formatter lands; for now they print a notice.
 """
 
@@ -11,10 +11,10 @@ from pathlib import Path
 
 import typer
 
-from rateb import __app_name__, __version__
+from rtib import __app_name__, __version__
 
 app = typer.Typer(
-    name="rateb",
+    name="rtib",
     help="Local-first AI sorter/formatter for messy unstructured text.",
     add_completion=False,
     invoke_without_command=True,
@@ -66,7 +66,7 @@ def root(
 def _run_gui() -> None:
     # Lazy import — keeps CLI startup fast and avoids loading PySide6
     # when the user only wants --help or --version.
-    from rateb.gui.app import run_gui
+    from rtib.gui.app import run_gui
 
     sys.exit(run_gui())
 

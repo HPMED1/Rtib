@@ -1,6 +1,6 @@
-# Rateb
+# Rtib
 
-> رتب — "arrange"
+> رتِّب — "arrange!"
 
 A local-first AI sorter/formatter. Feed it messy unstructured text (movie filenames, lab orders, scraped lists, anything where every line is shaped differently) and it returns clean JSON, CSV, or XLSX using a small local model via Ollama.
 
@@ -20,21 +20,21 @@ Skeleton stage. The GUI launches, lists installed Ollama models, and shows backe
 pip install -e .
 ```
 
-This registers the `rateb` command.
+This registers the `rtib` command.
 
 ## Usage
 
 ```powershell
-rateb                       # opens the GUI
-rateb --help                # CLI usage
+rtib                       # opens the GUI
+rtib --help                # CLI usage
 ```
 
 CLI batch mode (planned, not implemented yet):
 
 ```powershell
-rateb --input unsorted.txt --output sorted.json
-rateb --input unsorted.txt --output sorted.csv  --model granite4.1:3b
-rateb --input unsorted.txt --output sorted.xlsx --hint "movie filenames"
+rtib --input unsorted.txt --output sorted.json
+rtib --input unsorted.txt --output sorted.csv  --model granite4.1:3b
+rtib --input unsorted.txt --output sorted.xlsx --hint "movie filenames"
 ```
 
 ## License
