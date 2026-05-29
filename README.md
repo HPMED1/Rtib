@@ -6,7 +6,7 @@ A local-first AI sorter/formatter. Feed it messy unstructured text (movie filena
 
 ## Status
 
-Functional. GUI auto-mode end-to-end works: paste/load/drag-drop input → optional one-line hint → model-suggested headers (editable) → streaming sort → JSON/CSV/XLSX export. CLI batch mode is wired up. Distribution as a standalone .exe is not built yet.
+Functional. GUI auto-mode end-to-end works: paste/load/drag-drop input → optional one-line hint → model-suggested headers (editable, saveable as templates) → streaming sort → JSON/CSV/XLSX export. CLI batch mode and standalone-binary builds (`.exe`) are wired up. 41 unit tests cover schema/templates/exporters.
 
 ## Requirements
 
@@ -80,6 +80,44 @@ A minimal forward-compatible JSON file:
 ```
 
 Only `headers` is required. `hint` and other future fields are ignored by the CLI when used with `--schema`.
+
+The GUI's **Templates** dropdown is backed by exactly this file format. Templates live in your user app data dir (e.g. `%APPDATA%\Rtib\Rtib\templates\*.json` on Windows) so they're shared between GUI and CLI runs.
+
+## Build a standalone .exe
+
+For sharing with someone who doesn't have Python:
+
+```powershell
+pip install -e .[dev]                                # gets PyInstaller + Pillow
+python scripts/generate-icon.py                      # one-time; produces the .ico
+powershell -ExecutionPolicy Bypass -File scripts/build-dist.ps1
+```
+
+Produces two single-file executables in `dist/`:
+
+- **`dist/Rtib.exe`** — the GUI app. Double-click to launch. No console window.
+- **`dist/cli/rtib.exe`** — the CLI. Add `dist/cli/` to PATH if you want `rtib --input X --output Y` from anywhere.
+
+Build script is also available for macOS/Linux:
+
+```bash
+bash scripts/build-dist.sh
+```
+
+To put an `Rtib` shortcut on your desktop:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-shortcut.ps1
+```
+
+Each `.exe` is around 75 MB (Qt is the bulk). First launch is slower than subsequent ones because the one-file binary unpacks to temp.
+
+## Tests
+
+```powershell
+pytest tests/ --ignore=tests/test_e2e_pipeline.py    # ~1s, no Ollama
+python tests/test_e2e_pipeline.py                    # live, needs Ollama running
+```
 
 ## License
 

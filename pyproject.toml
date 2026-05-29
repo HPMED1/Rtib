@@ -33,6 +33,7 @@ dev = [
     "pytest>=8",
     "pyinstaller>=6.6",
     "ruff>=0.5",
+    "Pillow>=10",  # only for scripts/generate-icon.py
 ]
 
 [project.scripts]
