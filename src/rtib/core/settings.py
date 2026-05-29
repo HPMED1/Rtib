@@ -16,7 +16,6 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import QByteArray, QObject, QSettings, Signal
 
-
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_SORT_MODEL = "granite4.1:3b"
 DEFAULT_AUTO_HEADER_MODEL = "granite4.1:3b"

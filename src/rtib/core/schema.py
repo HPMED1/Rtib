@@ -12,7 +12,6 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-
 _SLUG_RE = re.compile(r"[^a-z0-9_]+")
 
 

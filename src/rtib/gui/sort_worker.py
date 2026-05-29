@@ -15,7 +15,12 @@ from rtib.core.schema import Header
 
 
 class HeaderSuggestionWorker(QThread):
-    """One-shot worker: sends a sample to the model, emits the suggested headers."""
+    """One-shot worker: sends a sample to the model, emits the suggested headers.
+
+    Cancellable: ``cancel()`` sets a flag so any result that arrives after
+    cancellation is silently dropped. The underlying HTTP call can't be
+    interrupted mid-flight, but the user's UI doesn't have to wait for it.
+    """
 
     succeeded = Signal(list)  # list[Header]
     failed = Signal(str)
@@ -33,15 +38,23 @@ class HeaderSuggestionWorker(QThread):
         self._model = model
         self._sample_rows = sample_rows
         self._hint = hint
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        self._cancelled = True
 
     def run(self) -> None:
         try:
             headers = suggest_headers(self._client, self._model, self._sample_rows, self._hint)
         except OllamaError as exc:
-            self.failed.emit(str(exc))
+            if not self._cancelled:
+                self.failed.emit(str(exc))
             return
         except Exception as exc:  # last-resort guard so the thread can't crash silently
-            self.failed.emit(f"Unexpected error: {exc}")
+            if not self._cancelled:
+                self.failed.emit(f"Unexpected error: {exc}")
+            return
+        if self._cancelled:
             return
         if not headers:
             self.failed.emit("Model returned no headers.")
@@ -75,8 +88,11 @@ class SortWorker(QThread):
     def cancel(self) -> None:
         self._cancelled = True
 
+    _MAX_CONSECUTIVE_FAILURES = 3
+
     def run(self) -> None:
         total = len(self._rows)
+        consecutive_failures = 0
         for i, row in enumerate(self._rows):
             if self._cancelled:
                 return
@@ -86,4 +102,16 @@ class SortWorker(QThread):
                 result = RowResult(raw=row, values=None, error=f"Unexpected: {exc}")
             self.row_done.emit(i, result)
             self.progress.emit(i + 1, total)
+
+            if result.ok:
+                consecutive_failures = 0
+            else:
+                consecutive_failures += 1
+                if consecutive_failures >= self._MAX_CONSECUTIVE_FAILURES:
+                    self.failed.emit(
+                        f"{self._MAX_CONSECUTIVE_FAILURES} rows in a row failed — "
+                        "Ollama may have stopped responding. Check the server, "
+                        "then re-run on the remaining rows."
+                    )
+                    return
         self.finished_ok.emit()

@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from rtib.core.ollama_client import OllamaClient, OllamaError
 from rtib.core.schema import Header, header_suggestion_schema, row_schema
 
-
 _HEADER_SUGGESTION_SYSTEM = """You are a data architect helping a user clean up messy unstructured text.
 
 You are shown a small sample of rows and an optional one-line description of what the data is. Your job is to propose the **columns** (headers) the user should extract from this data — what fields a tidy CSV/JSON of this data would have.

@@ -90,7 +90,13 @@ def export_xlsx(
     ws.append(header_row)
 
     for r in results:
-        row = [(r.values or {}).get(h.key) for h in headers]
+        if r.values is None:
+            # openpyxl skips rows whose cells are all None, which would make
+            # parse_error rows invisible in Excel. Use empty strings instead so
+            # the row is persisted and the user can see (and fix) what failed.
+            row: list = ["" for _ in headers]
+        else:
+            row = [r.values.get(h.key) for h in headers]
         if include_status:
             row.append("ok" if r.ok else "parse_error")
         if include_raw:

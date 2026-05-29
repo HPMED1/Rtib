@@ -49,6 +49,8 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         root = QWidget()
+        root.setObjectName("dropTarget")
+        self._central = root
         self.setCentralWidget(root)
         outer = QVBoxLayout(root)
         outer.setContentsMargins(24, 20, 24, 20)
@@ -135,15 +137,31 @@ class MainWindow(QMainWindow):
 
     # ---------- Drag-drop ----------
 
+    def _set_drag_over(self, on: bool) -> None:
+        self._central.setProperty("dragOver", on)
+        # Force QSS to re-evaluate the property selector.
+        self._central.style().unpolish(self._central)
+        self._central.style().polish(self._central)
+        if on:
+            self.statusBar().showMessage("Drop to load as input", 0)
+        else:
+            self.statusBar().clearMessage()
+
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 if url.isLocalFile():
+                    self._set_drag_over(True)
                     event.acceptProposedAction()
                     return
         event.ignore()
 
+    def dragLeaveEvent(self, event) -> None:
+        self._set_drag_over(False)
+        super().dragLeaveEvent(event)
+
     def dropEvent(self, event: QDropEvent) -> None:
+        self._set_drag_over(False)
         urls = event.mimeData().urls()
         for url in urls:
             if not url.isLocalFile():

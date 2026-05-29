@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QProgressBar,
+    QProgressDialog,
     QPushButton,
     QStackedWidget,
     QTextEdit,
@@ -43,7 +44,6 @@ from rtib.gui.hint_dialog import HintDialog
 from rtib.gui.preview_table import PreviewModel, PreviewTable
 from rtib.gui.sort_worker import HeaderSuggestionWorker, SortWorker
 
-
 PAGE_INPUT = 0
 PAGE_HEADERS = 1
 PAGE_PREVIEW = 2
@@ -58,6 +58,7 @@ class SortTab(QWidget):
         self._headers: list[Header] = []
         self._current_hint: str | None = None
         self._suggest_worker: HeaderSuggestionWorker | None = None
+        self._suggest_progress: QProgressDialog | None = None
         self._sort_worker: SortWorker | None = None
         self._preview_model: PreviewModel | None = None
 
@@ -175,13 +176,16 @@ class SortTab(QWidget):
             )
             return
 
+        s = self._settings.current
+        if not self._check_ollama_or_warn(s.ollama_url):
+            return
+
         dlg = HintDialog(self)
         if dlg.exec() != HintDialog.DialogCode.Accepted:
             return
         hint = dlg.hint or None
         self._current_hint = hint
 
-        s = self._settings.current
         sample = rows[: max(1, s.auto_header_sample_rows)]
         client = OllamaClient(s.ollama_url, timeout_s=s.request_timeout_s)
 
@@ -199,9 +203,28 @@ class SortTab(QWidget):
         self._suggest_worker.succeeded.connect(self._on_suggest_succeeded)
         self._suggest_worker.failed.connect(self._on_suggest_failed)
         self._suggest_worker.finished.connect(self._suggest_worker.deleteLater)
+
+        # Busy modal with Cancel. Min=Max=0 makes it an indeterminate spinner.
+        progress = QProgressDialog(
+            f"Asking {s.auto_header_model} for headers…", "Cancel", 0, 0, self
+        )
+        progress.setWindowTitle("Suggesting headers")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.canceled.connect(self._on_suggest_cancelled)
+        self._suggest_progress = progress
+        progress.show()
+
         self._suggest_worker.start()
 
+    def _close_suggest_progress(self) -> None:
+        if self._suggest_progress is not None:
+            self._suggest_progress.close()
+            self._suggest_progress.deleteLater()
+            self._suggest_progress = None
+
     def _on_suggest_succeeded(self, headers: list[Header]) -> None:
+        self._close_suggest_progress()
         self._suggest_btn.setEnabled(True)
         self._manual_btn.setEnabled(True)
         self._set_headers(headers)
@@ -209,10 +232,33 @@ class SortTab(QWidget):
         self.status_message.emit(f"Suggested {len(headers)} headers")
 
     def _on_suggest_failed(self, msg: str) -> None:
+        self._close_suggest_progress()
         self._suggest_btn.setEnabled(True)
         self._manual_btn.setEnabled(True)
         QMessageBox.warning(self, "Header suggestion failed", msg)
         self.status_message.emit("Header suggestion failed")
+
+    def _on_suggest_cancelled(self) -> None:
+        if self._suggest_worker is not None:
+            self._suggest_worker.cancel()
+        self._close_suggest_progress()
+        self._suggest_btn.setEnabled(True)
+        self._manual_btn.setEnabled(True)
+        self.status_message.emit("Header suggestion cancelled")
+
+    def _check_ollama_or_warn(self, url: str) -> bool:
+        client = OllamaClient(url, timeout_s=5.0)
+        if client.health_check():
+            return True
+        QMessageBox.warning(
+            self,
+            "Ollama is unreachable",
+            f"Couldn't reach Ollama at {url}.\n\n"
+            "Make sure it's running (try `ollama serve` in a terminal) and "
+            "that the URL in Settings is correct.",
+        )
+        self.status_message.emit("Ollama unreachable")
+        return False
 
     # ---------- Templates menu ----------
 
@@ -322,6 +368,10 @@ class SortTab(QWidget):
             QMessageBox.information(self, "No input", "The input is empty.")
             return
 
+        s = self._settings.current
+        if not self._check_ollama_or_warn(s.ollama_url):
+            return
+
         self._headers = headers
         self._preview_model = self._preview_table.set_model_with(headers)
         self._progress.setMaximum(len(rows))
@@ -329,7 +379,6 @@ class SortTab(QWidget):
         self._set_export_enabled(False)
         self._cancel_btn.setEnabled(True)
 
-        s = self._settings.current
         client = OllamaClient(s.ollama_url, timeout_s=s.request_timeout_s)
         self._sort_worker = SortWorker(
             client=client,

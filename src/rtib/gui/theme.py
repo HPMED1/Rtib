@@ -6,10 +6,10 @@ so themes don't accidentally reshape the UI.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class Theme(str, Enum):
+class Theme(StrEnum):
     LIGHT = "light"
     DARK = "dark"
 
@@ -63,6 +63,11 @@ QStatusBar {
 }
 QLabel#statusDotOk { color: #16a34a; }
 QLabel#statusDotBad { color: #dc2626; }
+QWidget#dropTarget[dragOver="true"] {
+    background-color: #dbeafe;
+    border: 2px dashed #2563eb;
+    border-radius: 8px;
+}
 """
 
 _DARK_QSS = """
@@ -116,6 +121,11 @@ QStatusBar {
 }
 QLabel#statusDotOk { color: #22c55e; }
 QLabel#statusDotBad { color: #ef4444; }
+QWidget#dropTarget[dragOver="true"] {
+    background-color: #1e3a5f;
+    border: 2px dashed #3b82f6;
+    border-radius: 8px;
+}
 """
 
 

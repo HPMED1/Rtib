@@ -40,7 +40,6 @@ from rtib.core.pipeline import sort_row, suggest_headers
 from rtib.core.schema import Header
 from rtib.core.settings import AppSettings
 
-
 _CONSOLE = Console(stderr=True)
 _SUPPORTED_FORMATS = {".json", ".csv", ".xlsx"}
 

@@ -16,7 +16,6 @@ from PySide6.QtWidgets import QHeaderView, QTableView
 from rtib.core.pipeline import RowResult
 from rtib.core.schema import Header
 
-
 _RED_BG = QColor(220, 38, 38, 64)
 
 

@@ -53,4 +53,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-ignore = ["E501"]
+# E501: line length is enforced via formatter, not lint.
+# B008: typer.Option(...) in defaults is the idiomatic typer pattern.
+ignore = ["E501", "B008"]
