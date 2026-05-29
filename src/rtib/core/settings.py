@@ -1,17 +1,20 @@
 """App settings — defaults and the persistence-backed store.
 
-Sort model: used for the actual row-by-row formatting pass.
-Auto-mode keys: only consulted when the user clicks "Suggest headers" —
-the model and sample size for that one-shot call are separate so the user
-can pick a smarter (slower) model for header suggestion without paying
-that cost on every row.
+Two kinds of state both ride on QSettings:
+
+- ``AppSettings`` (the dataclass) is the user-editable surface. Sort model,
+  auto-mode model, sample size, etc. Edits from the Settings tab call
+  ``SettingsStore.update`` and fire the ``changed`` signal.
+- UI state (last theme, last window geometry) changes silently as the user
+  uses the app. It's exposed as plain getter/setter methods so we don't
+  bother emitting ``changed`` for window resizes.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, QSettings, Signal
+from PySide6.QtCore import QByteArray, QObject, QSettings, Signal
 
 
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
@@ -20,6 +23,7 @@ DEFAULT_AUTO_HEADER_MODEL = "granite4.1:3b"
 DEFAULT_AUTO_HEADER_SAMPLE_ROWS = 20
 DEFAULT_CHUNK_SIZE = 25
 DEFAULT_REQUEST_TIMEOUT_S = 120.0
+DEFAULT_THEME = "dark"
 
 
 @dataclass(frozen=True)
@@ -81,3 +85,24 @@ class SettingsStore(QObject):
         q.setValue("chunk_size", s.chunk_size)
         q.setValue("request_timeout_s", s.request_timeout_s)
         q.sync()
+
+    # ---------- UI state (theme + geometry) ----------
+
+    def get_theme_name(self) -> str:
+        return str(self._qs.value("ui/theme", DEFAULT_THEME))
+
+    def set_theme_name(self, name: str) -> None:
+        if name not in ("light", "dark"):
+            name = DEFAULT_THEME
+        self._qs.setValue("ui/theme", name)
+
+    def get_window_geometry(self) -> QByteArray | None:
+        raw = self._qs.value("ui/window_geometry")
+        if isinstance(raw, QByteArray) and not raw.isEmpty():
+            return raw
+        if isinstance(raw, (bytes, bytearray)) and len(raw) > 0:
+            return QByteArray(bytes(raw))
+        return None
+
+    def set_window_geometry(self, geometry: QByteArray) -> None:
+        self._qs.setValue("ui/window_geometry", geometry)

@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtGui import QCloseEvent, QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -31,17 +30,21 @@ from rtib.gui.theme import Theme, stylesheet_for
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, initial_theme: Theme = Theme.DARK) -> None:
+    def __init__(self, initial_theme: Theme | None = None) -> None:
         super().__init__()
         self.setWindowTitle(f"{__app_name__} — arrange messy text")
         self.resize(1100, 720)
         self.setAcceptDrops(True)
 
         self._settings_store = SettingsStore(self)
+        if initial_theme is None:
+            initial_theme = Theme(self._settings_store.get_theme_name())
         self._theme = initial_theme
         self._last_health_ok = False
 
         self._build_ui()
+        self._apply_theme_stylesheet()
+        self._restore_geometry()
         self._refresh_ollama_status()
 
     def _build_ui(self) -> None:
@@ -87,11 +90,24 @@ class MainWindow(QMainWindow):
 
     def _toggle_theme(self) -> None:
         self._theme = Theme.LIGHT if self._theme == Theme.DARK else Theme.DARK
+        self._apply_theme_stylesheet()
+        self._theme_btn.setText(self._theme_button_label())
+        self._restyle_status_dot(self._last_health_ok)
+        self._settings_store.set_theme_name(self._theme.value)
+
+    def _apply_theme_stylesheet(self) -> None:
         app = QApplication.instance()
         if app is not None:
             app.setStyleSheet(stylesheet_for(self._theme))
-        self._theme_btn.setText(self._theme_button_label())
-        self._restyle_status_dot(self._last_health_ok)
+
+    def _restore_geometry(self) -> None:
+        geom = self._settings_store.get_window_geometry()
+        if geom is not None:
+            self.restoreGeometry(geom)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self._settings_store.set_window_geometry(self.saveGeometry())
+        super().closeEvent(event)
 
     def _show_status_message(self, msg: str) -> None:
         self.statusBar().showMessage(msg, 5000)

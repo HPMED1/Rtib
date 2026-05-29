@@ -1,8 +1,8 @@
 """The main Sort tab — the user's workflow from messy input to exported file.
 
 Three pages in a QStackedWidget:
-  0. Input  — paste / load / drag-drop. Choose Auto or Manual.
-  1. Headers — review/edit the columns (filled by Auto or empty for Manual).
+  0. Input  — paste / load / drag-drop. Choose Auto, Manual, or load a Template.
+  1. Headers — review/edit the columns. "Save as template…" persists them for reuse.
   2. Preview — streaming results, then export.
 """
 
@@ -10,11 +10,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
+    QLineEdit,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -29,6 +32,12 @@ from rtib.core.ollama_client import OllamaClient
 from rtib.core.pipeline import RowResult
 from rtib.core.schema import Header
 from rtib.core.settings import SettingsStore
+from rtib.core.templates import (
+    list_templates,
+    load_template,
+    save_template,
+    template_exists,
+)
 from rtib.gui.headers_panel import HeadersPanel
 from rtib.gui.hint_dialog import HintDialog
 from rtib.gui.preview_table import PreviewModel, PreviewTable
@@ -47,6 +56,7 @@ class SortTab(QWidget):
         super().__init__(parent)
         self._settings = settings
         self._headers: list[Header] = []
+        self._current_hint: str | None = None
         self._suggest_worker: HeaderSuggestionWorker | None = None
         self._sort_worker: SortWorker | None = None
         self._preview_model: PreviewModel | None = None
@@ -95,6 +105,13 @@ class SortTab(QWidget):
         manual_btn.clicked.connect(self._go_manual)
         row.addWidget(manual_btn)
 
+        templates_btn = QPushButton("Templates ▾")
+        templates_btn.setToolTip("Load a previously saved set of headers")
+        self._templates_menu = QMenu(templates_btn)
+        self._templates_menu.aboutToShow.connect(self._rebuild_templates_menu)
+        templates_btn.setMenu(self._templates_menu)
+        row.addWidget(templates_btn)
+
         suggest_btn = QPushButton("Suggest headers")
         suggest_btn.setObjectName("primary")
         suggest_btn.clicked.connect(self._on_suggest_headers)
@@ -102,6 +119,7 @@ class SortTab(QWidget):
 
         self._suggest_btn = suggest_btn
         self._manual_btn = manual_btn
+        self._templates_btn = templates_btn
 
         layout.addLayout(row)
         return page
@@ -143,6 +161,7 @@ class SortTab(QWidget):
                 "Paste some text or load a file before defining headers.",
             )
             return
+        self._current_hint = None
         self._set_headers([Header(name="", description="")])
         self._stack.setCurrentIndex(PAGE_HEADERS)
 
@@ -160,6 +179,7 @@ class SortTab(QWidget):
         if dlg.exec() != HintDialog.DialogCode.Accepted:
             return
         hint = dlg.hint or None
+        self._current_hint = hint
 
         s = self._settings.current
         sample = rows[: max(1, s.auto_header_sample_rows)]
@@ -194,6 +214,38 @@ class SortTab(QWidget):
         QMessageBox.warning(self, "Header suggestion failed", msg)
         self.status_message.emit("Header suggestion failed")
 
+    # ---------- Templates menu ----------
+
+    def _rebuild_templates_menu(self) -> None:
+        self._templates_menu.clear()
+        templates = list_templates()
+        if not templates:
+            action = self._templates_menu.addAction("No saved templates")
+            action.setEnabled(False)
+            return
+        for t in templates:
+            action = self._templates_menu.addAction(t.name)
+            # Default arg captures the name in this iteration's scope.
+            action.triggered.connect(lambda _checked=False, n=t.name: self._on_use_template(n))
+
+    def _on_use_template(self, name: str) -> None:
+        rows = self._current_rows()
+        if not rows:
+            QMessageBox.information(
+                self,
+                "No input",
+                "Paste some text or load a file before loading a template.",
+            )
+            return
+        tpl = load_template(name)
+        if tpl is None or not tpl.headers:
+            QMessageBox.warning(self, "Template missing", f"Could not load template '{name}'.")
+            return
+        self._current_hint = tpl.hint
+        self._set_headers(tpl.headers)
+        self._stack.setCurrentIndex(PAGE_HEADERS)
+        self.status_message.emit(f"Loaded template '{tpl.name}' ({len(tpl.headers)} headers)")
+
     # ---------- Headers page ----------
 
     def _build_headers_page(self) -> QWidget:
@@ -218,6 +270,10 @@ class SortTab(QWidget):
         row.addWidget(back_btn)
         row.addStretch(1)
 
+        save_tpl_btn = QPushButton("Save as template…")
+        save_tpl_btn.clicked.connect(self._on_save_template)
+        row.addWidget(save_tpl_btn)
+
         sort_btn = QPushButton("Sort →")
         sort_btn.setObjectName("primary")
         sort_btn.clicked.connect(self._on_sort_clicked)
@@ -229,6 +285,32 @@ class SortTab(QWidget):
     def _set_headers(self, headers: list[Header]) -> None:
         self._headers = list(headers)
         self._headers_panel.set_headers(self._headers)
+
+    def _on_save_template(self) -> None:
+        headers = self._headers_panel.headers()
+        if not headers:
+            QMessageBox.information(self, "Nothing to save", "Define at least one header first.")
+            return
+        name, ok = QInputDialog.getText(
+            self,
+            "Save template",
+            "Template name:",
+            QLineEdit.EchoMode.Normal,
+            "",
+        )
+        name = name.strip()
+        if not ok or not name:
+            return
+        if template_exists(name):
+            reply = QMessageBox.question(
+                self,
+                "Overwrite template?",
+                f"A template named '{name}' already exists. Overwrite it?",
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        tpl = save_template(name, headers, self._current_hint)
+        self.status_message.emit(f"Saved template '{tpl.name}'")
 
     def _on_sort_clicked(self) -> None:
         headers = self._headers_panel.headers()
