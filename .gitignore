@@ -71,3 +71,4 @@ desktop.ini
 # user-saved schemas / settings cache
 .rateb-cache/
 sample-data/private/
+.screenshots/
