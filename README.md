@@ -2,7 +2,25 @@
 
 > رتِّب — "arrange!"
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/HPMED1/Rtib)](https://github.com/HPMED1/Rtib/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/HPMED1/Rtib/total)](https://github.com/HPMED1/Rtib/releases)
+
 A local-first AI sorter/formatter. Feed it messy unstructured text (movie filenames, lab orders, scraped lists, anything where every line is shaped differently) and it returns clean JSON, CSV, or XLSX using a small local model via Ollama.
+
+## Download
+
+Pre-built Windows binaries are on the [Releases page](https://github.com/HPMED1/Rtib/releases/latest):
+
+| File | What it is |
+|---|---|
+| **`Rtib-0.1.0-setup.exe`** | **Windows installer** — recommended for most people. Asks per-user vs system-wide at install time; optional desktop shortcut and CLI-on-PATH checkboxes. |
+| `Rtib-0.1.0-gui.exe` | Standalone GUI — no installer, just run it. |
+| `Rtib-0.1.0-cli.exe` | Standalone CLI for terminal / scripting use. |
+
+All three are unsigned, so Windows SmartScreen will warn on first run — click **More info → Run anyway**.
+
+You also need [Ollama](https://ollama.com) running locally with at least one model pulled (default looks for `granite4.1:3b`, configurable from the Settings tab).
 
 ## Status
 
@@ -112,9 +130,9 @@ Only `headers` is required. `hint` and other future fields are ignored by the CL
 
 The GUI's **Templates** dropdown is backed by exactly this file format. Templates live in your user app data dir (e.g. `%APPDATA%\Rtib\Rtib\templates\*.json` on Windows) so they're shared between GUI and CLI runs.
 
-## Build a standalone .exe
+## Build from source
 
-For sharing with someone who doesn't have Python:
+If you want to hack on Rtib or rebuild the binaries yourself:
 
 ```powershell
 pip install -e .[dev]                                # gets PyInstaller + Pillow
