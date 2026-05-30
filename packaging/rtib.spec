@@ -16,7 +16,7 @@ a = Analysis(
     [os.path.join(PROJECT_ROOT, "src", "rtib", "__main__.py")],
     pathex=[os.path.join(PROJECT_ROOT, "src")],
     binaries=[],
-    datas=[],
+    datas=[(ICON_PATH, "rtib/resources/icons")],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

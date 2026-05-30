@@ -12,6 +12,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
@@ -33,6 +34,7 @@ from rtib.core.ollama_client import OllamaClient
 from rtib.core.pipeline import RowResult
 from rtib.core.schema import Header
 from rtib.core.settings import SettingsStore
+from rtib.core.splitting import SeparatorKind, split_input
 from rtib.core.templates import (
     list_templates,
     load_template,
@@ -49,6 +51,17 @@ PAGE_HEADERS = 1
 PAGE_PREVIEW = 2
 
 
+_SEPARATOR_LABELS: list[tuple[SeparatorKind, str]] = [
+    (SeparatorKind.AUTO, "Auto"),
+    (SeparatorKind.NEWLINE, "Newline"),
+    (SeparatorKind.COMMA, "Comma"),
+    (SeparatorKind.SEMICOLON, "Semicolon"),
+    (SeparatorKind.TAB, "Tab"),
+    (SeparatorKind.PIPE, "Pipe"),
+    (SeparatorKind.REGEX, "Custom regex…"),
+]
+
+
 class SortTab(QWidget):
     status_message = Signal(str)
 
@@ -57,6 +70,8 @@ class SortTab(QWidget):
         self._settings = settings
         self._headers: list[Header] = []
         self._current_hint: str | None = None
+        self._separator = SeparatorKind.AUTO
+        self._custom_pattern = ""
         self._suggest_worker: HeaderSuggestionWorker | None = None
         self._suggest_progress: QProgressDialog | None = None
         self._sort_worker: SortWorker | None = None
@@ -79,18 +94,21 @@ class SortTab(QWidget):
         layout.setSpacing(10)
 
         intro = QLabel(
-            "Paste your messy text below (one item per line), load a file, "
-            "or drag a text file onto this window."
+            "Paste your messy text below, load a file, or drag a text file "
+            "onto this window. Rtib will figure out how to split it into rows, "
+            "or you can pick a separator."
         )
         intro.setObjectName("muted")
         intro.setWordWrap(True)
         layout.addWidget(intro)
 
         self._input_edit = QTextEdit()
-        self._input_edit.setPlaceholderText("e.g. one movie filename per line")
+        self._input_edit.setPlaceholderText("Paste anything — Rtib will split it into rows")
         self._input_edit.setAcceptRichText(False)
         self._input_edit.textChanged.connect(self._on_input_changed)
         layout.addWidget(self._input_edit, 1)
+
+        layout.addLayout(self._build_separator_row())
 
         self._row_count = QLabel("0 rows")
         self._row_count.setObjectName("muted")
@@ -125,13 +143,49 @@ class SortTab(QWidget):
         layout.addLayout(row)
         return page
 
+    def _build_separator_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Split by:"))
+
+        self._sep_combo = QComboBox()
+        for kind, label in _SEPARATOR_LABELS:
+            self._sep_combo.addItem(label, kind)
+        self._sep_combo.currentIndexChanged.connect(self._on_separator_changed)
+        row.addWidget(self._sep_combo)
+
+        self._custom_regex_edit = QLineEdit()
+        self._custom_regex_edit.setPlaceholderText(r"e.g. \s{2,} or (?<=\d{4})\s+")
+        self._custom_regex_edit.setVisible(False)
+        self._custom_regex_edit.textChanged.connect(self._on_custom_pattern_changed)
+        row.addWidget(self._custom_regex_edit, 1)
+        row.addStretch(0)
+        return row
+
+    def _on_separator_changed(self, idx: int) -> None:
+        kind: SeparatorKind = self._sep_combo.itemData(idx)
+        self._separator = kind
+        self._custom_regex_edit.setVisible(kind == SeparatorKind.REGEX)
+        self._on_input_changed()
+
+    def _on_custom_pattern_changed(self, text: str) -> None:
+        self._custom_pattern = text
+        if self._separator == SeparatorKind.REGEX:
+            self._on_input_changed()
+
     def _on_input_changed(self) -> None:
-        n = len(self._current_rows())
-        self._row_count.setText(f"{n} rows")
+        result = self._split_current()
+        n = len(result.rows)
+        if self._separator == SeparatorKind.AUTO and n > 0:
+            self._row_count.setText(f"{n} rows  ·  detected: {result.chosen.value}")
+        else:
+            self._row_count.setText(f"{n} rows")
+
+    def _split_current(self):
+        text = self._input_edit.toPlainText()
+        return split_input(text, self._separator, self._custom_pattern or None)
 
     def _current_rows(self) -> list[str]:
-        text = self._input_edit.toPlainText()
-        return [line for line in (raw.strip() for raw in text.splitlines()) if line]
+        return self._split_current().rows
 
     def _on_load_file(self) -> None:
         path_str, _ = QFileDialog.getOpenFileName(

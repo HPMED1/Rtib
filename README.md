@@ -65,6 +65,21 @@ rtib --input movies.txt --output sorted.json --model qwen3:4b --hint "movies"
 
 Output format is detected from the file extension (`.json`, `.csv`, `.xlsx`). The CLI always exits 0 on a completed run; if any rows failed to parse, a `_status` column is added to the output so you can filter them.
 
+### Input row separator
+
+Rtib doesn't assume your data is one-row-per-line. By default it **auto-detects** the separator (newlines, commas, semicolons, tabs, pipes). If your file has 200 comma-separated movie titles on a single line, Auto picks `comma` and you get 200 rows; if it's one record per line, Auto picks `newline`.
+
+The GUI has a **Split by** dropdown above the row count that shows the detected choice. The CLI has `--separator`:
+
+```powershell
+rtib --input contacts.txt --output sorted.csv --separator semicolon
+rtib --input dump.txt     --output sorted.csv --separator tab
+rtib --input flat.txt     --output sorted.csv --separator "\s{2,}"        # custom regex
+rtib --input phones.txt   --output sorted.csv --separator "(?<=\d{4})\s+" # split after 4-digit numbers
+```
+
+Anything that isn't one of the named separators is treated as a regex pattern, so you can handle awkward cases where commas live inside fields or records are separated by something exotic.
+
 ### Schema file format
 
 A minimal forward-compatible JSON file:

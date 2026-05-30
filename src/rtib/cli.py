@@ -39,6 +39,7 @@ from rtib.core.ollama_client import OllamaClient, OllamaError
 from rtib.core.pipeline import sort_row, suggest_headers
 from rtib.core.schema import Header
 from rtib.core.settings import AppSettings
+from rtib.core.splitting import SeparatorKind, split_input
 
 _CONSOLE = Console(stderr=True)
 _SUPPORTED_FORMATS = {".json", ".csv", ".xlsx"}
@@ -82,6 +83,10 @@ def root(
         None, "--save-schema",
         help="After auto-suggestion, save the headers to this file for reuse with --schema.",
     ),
+    separator: str = typer.Option(
+        "auto", "--separator",
+        help="How to split the input into rows: auto | newline | comma | semicolon | tab | pipe | <regex>.",
+    ),
     version: bool = typer.Option(
         False, "--version", "-V", help="Show version and exit.",
         callback=_version_callback, is_eager=True,
@@ -103,6 +108,7 @@ def root(
             hint=hint,
             schema_path=schema_path,
             save_schema_path=save_schema_path,
+            separator=separator,
         )
         return
 
@@ -134,6 +140,7 @@ def _run_batch(
     hint: str | None,
     schema_path: Path | None,
     save_schema_path: Path | None,
+    separator: str = "auto",
 ) -> None:
     settings = AppSettings()
     sort_model = model or settings.sort_model
@@ -151,10 +158,14 @@ def _run_batch(
         )
         raise typer.Exit(code=2)
 
-    rows = _read_rows(input_path)
+    rows, chosen = _read_rows(input_path, separator)
     if not rows:
-        _CONSOLE.print(f"[red]Input file is empty:[/red] {input_path}")
+        _CONSOLE.print(f"[red]Input file is empty or unsplittable:[/red] {input_path}")
         raise typer.Exit(code=2)
+    _CONSOLE.print(
+        f"Read [green]{len(rows)} rows[/green] from [cyan]{input_path.name}[/cyan] "
+        f"(separator: {chosen})"
+    )
 
     client = OllamaClient(settings.ollama_url, timeout_s=settings.request_timeout_s)
     if not client.health_check():
@@ -188,9 +199,28 @@ def _run_batch(
         _CONSOLE.print("(_status column added because some rows failed)")
 
 
-def _read_rows(path: Path) -> list[str]:
+_NAMED_SEPARATORS: dict[str, SeparatorKind] = {
+    "auto": SeparatorKind.AUTO,
+    "newline": SeparatorKind.NEWLINE,
+    "comma": SeparatorKind.COMMA,
+    "semicolon": SeparatorKind.SEMICOLON,
+    "tab": SeparatorKind.TAB,
+    "pipe": SeparatorKind.PIPE,
+}
+
+
+def _read_rows(path: Path, separator: str) -> tuple[list[str], str]:
+    """Read and split the input file. Returns (rows, label of separator used)."""
     text = path.read_text(encoding="utf-8", errors="replace")
-    return [line.strip() for line in text.splitlines() if line.strip()]
+    sep_key = separator.lower().strip()
+    if sep_key in _NAMED_SEPARATORS:
+        kind = _NAMED_SEPARATORS[sep_key]
+        result = split_input(text, kind)
+    else:
+        # Treat unknown values as a custom regex.
+        result = split_input(text, SeparatorKind.REGEX, custom_pattern=separator)
+    label = result.chosen.value if result.chosen != SeparatorKind.REGEX else f"regex {separator!r}"
+    return result.rows, label
 
 
 def _load_schema(path: Path) -> list[Header]:

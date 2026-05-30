@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtGui import QCloseEvent, QDragEnterEvent, QDropEvent
+from PySide6.QtGui import QCloseEvent, QDragEnterEvent, QDropEvent, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from rtib import __app_name__, __version__
 from rtib.core.ollama_client import OllamaClient
 from rtib.core.settings import SettingsStore
+from rtib.gui.icon import resolve_icon_path
 from rtib.gui.settings_tab import SettingsTab
 from rtib.gui.sort_tab import SortTab
 from rtib.gui.theme import Theme, stylesheet_for
@@ -35,6 +36,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{__app_name__} — arrange messy text")
         self.resize(1100, 720)
         self.setAcceptDrops(True)
+
+        icon_path = resolve_icon_path()
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         self._settings_store = SettingsStore(self)
         if initial_theme is None:
