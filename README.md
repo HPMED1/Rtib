@@ -6,7 +6,7 @@ A local-first AI sorter/formatter. Feed it messy unstructured text (movie filena
 
 ## Status
 
-Functional. GUI auto-mode end-to-end works: paste/load/drag-drop input → optional one-line hint → model-suggested headers (editable, saveable as templates) → streaming sort → JSON/CSV/XLSX export. CLI batch mode and standalone-binary builds (`.exe`) are wired up. 41 unit tests cover schema/templates/exporters.
+**v0.1.0** — first ship-ready release. GUI auto-mode end-to-end works: paste/load/drag-drop input → optional one-line hint → model-suggested headers (editable, saveable as templates) → streaming sort → JSON/CSV/XLSX export. CLI batch mode (with auto-detect or named separators, plus bulk mode for chaotic input) and standalone-binary builds (`.exe`) are wired up. 83 unit tests cover schema, splitting, templates, and exporters (including type-aware XLSX coercion). MIT licensed. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -150,4 +150,4 @@ python tests/test_e2e_pipeline.py                    # live, needs Ollama runnin
 
 ## License
 
-TBD.
+[MIT](LICENSE). Use it, fork it, sell it — just keep the copyright notice in your distribution.

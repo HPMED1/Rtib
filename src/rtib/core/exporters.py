@@ -9,12 +9,48 @@ from __future__ import annotations
 
 import csv
 import json
+import re
+from datetime import date, datetime
 from pathlib import Path
 
 from openpyxl import Workbook
 
 from rtib.core.pipeline import RowResult
 from rtib.core.schema import Header
+
+# Integers up to 10 digits, no leading zeros (so phone-number-looking strings
+# and zero-padded codes like "01234" stay as text). Pure ``"0"`` is allowed.
+_INT_RE = re.compile(r"^-?[1-9]\d{0,9}$|^0$")
+_FLOAT_RE = re.compile(r"^-?\d+\.\d+$")
+
+
+def _coerce_xlsx_value(value: str | None):
+    """Pick the best Excel-native type for a string value.
+
+    The model returns everything as strings (the schema is ``string|null``).
+    For XLSX we want years as integers, prices as floats, dates as dates,
+    and everything else as text.
+
+    Conservative rules so we never accidentally numify identifiers:
+    - Leading zeros stay as strings ("01234" stays a string, "0" becomes int 0).
+    - Phone-like / long-digit strings (>10 digits) stay as strings.
+    - Strings containing any non-numeric character ("1080p", "555-1234") stay
+      strings even if they happen to start with digits.
+    """
+    if value is None or value == "":
+        return None
+    if _INT_RE.fullmatch(value):
+        return int(value)
+    if _FLOAT_RE.fullmatch(value):
+        return float(value)
+    # ISO date / datetime: 2024-01-15 or 2024-01-15T10:30:00
+    try:
+        if "T" in value:
+            return datetime.fromisoformat(value)
+        return date.fromisoformat(value)
+    except ValueError:
+        pass
+    return value
 
 
 def _row_to_dict(
@@ -96,7 +132,7 @@ def export_xlsx(
             # the row is persisted and the user can see (and fix) what failed.
             row: list = ["" for _ in headers]
         else:
-            row = [r.values.get(h.key) for h in headers]
+            row = [_coerce_xlsx_value(r.values.get(h.key)) for h in headers]
         if include_status:
             row.append("ok" if r.ok else "parse_error")
         if include_raw:
