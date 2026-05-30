@@ -141,6 +141,19 @@ powershell -ExecutionPolicy Bypass -File scripts/install-shortcut.ps1
 
 Each `.exe` is around 75 MB (Qt is the bulk). First launch is slower than subsequent ones because the one-file binary unpacks to temp.
 
+### Build a Windows installer
+
+For handing Rtib to someone non-technical, build a proper Windows installer that lands shortcuts, registers an uninstaller, and (optionally) puts the CLI on PATH:
+
+```powershell
+winget install JRSoftware.InnoSetup    # one-time
+powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1
+```
+
+Output: `dist\installer\Rtib-0.1.0-setup.exe` (~150 MB).
+
+The installer is unsigned, so SmartScreen will warn on first download — clicking "More info" → "Run anyway" gets past it. At install time the user picks **Install for: all users / just me**. Optional checkboxes: desktop shortcut, add `rtib` (CLI) to PATH. Standard Start-menu shortcut and Add/Remove-Programs uninstaller are always registered.
+
 ## Tests
 
 ```powershell

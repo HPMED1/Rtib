@@ -5,6 +5,18 @@ All notable changes to Rtib are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Windows installer** (`scripts\build-installer.ps1`) — Inno Setup script
+  bundles both `.exe`s plus `LICENSE`, `README.md`, `CHANGELOG.md`.
+  Per-user vs system-wide install chosen at install time. Optional desktop
+  shortcut and "add CLI to PATH" checkboxes. Standard Start-menu shortcut
+  and Add/Remove-Programs uninstaller are always registered. Clean
+  uninstall removes the PATH entry it added. Output:
+  `dist\installer\Rtib-<version>-setup.exe` (~150 MB).
+
 ## [0.1.0] — 2026-05-30
 
 First "ship-ready" release. The app handles the full flow end-to-end in both
@@ -60,12 +72,6 @@ MIT.
 - **XLSX parse_error rows silently dropped** — openpyxl skips rows whose
   cells are all `None`; we now write empty strings on failed rows so they
   stay visible in the spreadsheet.
-
-### Changed
-
-- **Renamed** package, CLI command, and brand from "Rateb" to "Rtib"
-  (closer to the Arabic imperative رتِّب). The on-disk project directory
-  is intentionally unchanged.
 
 ## [0.0.1] — 2026-05-29
 
