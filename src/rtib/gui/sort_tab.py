@@ -259,12 +259,17 @@ class SortTab(QWidget):
         self._suggest_worker.finished.connect(self._suggest_worker.deleteLater)
 
         # Busy modal with Cancel. Min=Max=0 makes it an indeterminate spinner.
+        # autoClose/autoReset are TRUE by default and fire when value >= max.
+        # With min=max=0 the initial value satisfies that condition, so without
+        # disabling them the dialog auto-cancels itself a few ms after show().
         progress = QProgressDialog(
             f"Asking {s.auto_header_model} for headers…", "Cancel", 0, 0, self
         )
         progress.setWindowTitle("Suggesting headers")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
         progress.canceled.connect(self._on_suggest_cancelled)
         self._suggest_progress = progress
         progress.show()
@@ -273,6 +278,13 @@ class SortTab(QWidget):
 
     def _close_suggest_progress(self) -> None:
         if self._suggest_progress is not None:
+            # Disconnect first: QProgressDialog.close() emits ``canceled``, which
+            # would otherwise re-enter _on_suggest_cancelled and cancel the
+            # worker just as it was about to deliver success.
+            try:
+                self._suggest_progress.canceled.disconnect(self._on_suggest_cancelled)
+            except (TypeError, RuntimeError):
+                pass
             self._suggest_progress.close()
             self._suggest_progress.deleteLater()
             self._suggest_progress = None
