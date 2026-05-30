@@ -21,6 +21,7 @@ from enum import StrEnum
 
 class SeparatorKind(StrEnum):
     AUTO = "auto"
+    WHOLE = "whole"  # send the entire input as one chunk; the model finds records
     NEWLINE = "newline"
     COMMA = "comma"
     SEMICOLON = "semicolon"
@@ -62,7 +63,18 @@ def split_input(
     """Split ``text`` into rows using the named (or auto-detected) separator.
 
     ``custom_pattern`` is only consulted when ``separator == REGEX``.
+
+    ``WHOLE`` means "don't split"; we hand the entire (stripped) text back as
+    a single item. The caller is expected to route that single item through
+    the bulk-extraction pipeline rather than treating it as one row.
     """
+    if separator == SeparatorKind.WHOLE:
+        stripped = (text or "").strip()
+        return SplitResult(
+            rows=[stripped] if stripped else [],
+            chosen=SeparatorKind.WHOLE,
+        )
+
     if separator == SeparatorKind.REGEX:
         pattern = (custom_pattern or "").strip()
         if not pattern:

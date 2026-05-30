@@ -55,6 +55,26 @@ def row_schema(headers: list[Header]) -> dict[str, Any]:
     }
 
 
+def bulk_records_schema(headers: list[Header]) -> dict[str, Any]:
+    """Schema for the bulk-extract call: an array of records.
+
+    Used when the user picks "Whole input" — we hand the model the entire
+    chunk and ask for every record it can identify, instead of looping
+    one call per row.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "records": {
+                "type": "array",
+                "items": row_schema(headers),
+            }
+        },
+        "required": ["records"],
+        "additionalProperties": False,
+    }
+
+
 def header_suggestion_schema() -> dict[str, Any]:
     """Schema for the auto-mode header suggestion call.
 

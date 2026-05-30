@@ -53,6 +53,7 @@ PAGE_PREVIEW = 2
 
 _SEPARATOR_LABELS: list[tuple[SeparatorKind, str]] = [
     (SeparatorKind.AUTO, "Auto"),
+    (SeparatorKind.WHOLE, "Whole input — 1 call (bulk)"),
     (SeparatorKind.NEWLINE, "Newline"),
     (SeparatorKind.COMMA, "Comma"),
     (SeparatorKind.SEMICOLON, "Semicolon"),
@@ -173,6 +174,16 @@ class SortTab(QWidget):
             self._on_input_changed()
 
     def _on_input_changed(self) -> None:
+        if self._separator == SeparatorKind.WHOLE:
+            text = self._input_edit.toPlainText().strip()
+            if text:
+                self._row_count.setText(
+                    f"Bulk mode — sending {len(text):,} chars in one call "
+                    f"(model decides record count)"
+                )
+            else:
+                self._row_count.setText("Bulk mode — empty input")
+            return
         result = self._split_current()
         n = len(result.rows)
         if self._separator == SeparatorKind.AUTO and n > 0:
@@ -240,7 +251,14 @@ class SortTab(QWidget):
         hint = dlg.hint or None
         self._current_hint = hint
 
-        sample = rows[: max(1, s.auto_header_sample_rows)]
+        # In bulk mode the model needs the same chaotic context for the
+        # suggestion step that it'll see during sorting — sampling
+        # split-by-newline pre-decided rows would defeat the point. Just
+        # send the whole input (truncated only to fit a reasonable limit).
+        if self._separator == SeparatorKind.WHOLE:
+            sample = rows[:1]  # rows[0] IS the whole text
+        else:
+            sample = rows[: max(1, s.auto_header_sample_rows)]
         client = OllamaClient(s.ollama_url, timeout_s=s.request_timeout_s)
 
         self._suggest_btn.setEnabled(False)
@@ -440,8 +458,14 @@ class SortTab(QWidget):
 
         self._headers = headers
         self._preview_model = self._preview_table.set_model_with(headers)
-        self._progress.setMaximum(len(rows))
-        self._progress.setValue(0)
+        bulk_mode = self._separator == SeparatorKind.WHOLE
+        if bulk_mode:
+            # We don't know how many records the model will return until it
+            # responds, so use an indeterminate spinner.
+            self._progress.setRange(0, 0)
+        else:
+            self._progress.setRange(0, len(rows))
+            self._progress.setValue(0)
         self._set_export_enabled(False)
         self._cancel_btn.setEnabled(True)
 
@@ -451,6 +475,7 @@ class SortTab(QWidget):
             model=s.sort_model,
             rows=rows,
             headers=headers,
+            bulk_mode=bulk_mode,
             parent=self,
         )
         self._sort_worker.row_done.connect(self._on_row_done)

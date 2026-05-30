@@ -80,6 +80,20 @@ rtib --input phones.txt   --output sorted.csv --separator "(?<=\d{4})\s+" # spli
 
 Anything that isn't one of the named separators is treated as a regex pattern, so you can handle awkward cases where commas live inside fields or records are separated by something exotic.
 
+#### Bulk mode (`--separator whole`)
+
+For truly chaotic input where records use **mixed separators** in the same file — newlines, commas, semicolons, pipes, and spaces all interleaved — no splitter will reliably split them. Bulk mode hands the entire input to the model as one call and asks it to find every record:
+
+```powershell
+rtib --input jumbled.txt --output sorted.json --separator whole --hint "movie filenames"
+```
+
+In the GUI, the same mode is the "Whole input — 1 call (bulk)" option in the Split-by dropdown. Caveats:
+
+- The whole input must fit in the model's context window. Granite 3B has ~8 K tokens (~30 KB of text); larger inputs will be truncated and you'll get fewer records than exist.
+- No streaming preview — results appear all at once when the model finishes.
+- Slower per record than row mode but much faster than failing.
+
 ### Schema file format
 
 A minimal forward-compatible JSON file:

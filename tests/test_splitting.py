@@ -128,6 +128,26 @@ class TestAuto:
         assert r.rows == []
 
 
+class TestWholeMode:
+    def test_returns_whole_text(self):
+        text = "anything\nat all, with mixed; separators"
+        r = split_input(text, SeparatorKind.WHOLE)
+        assert r.rows == [text]
+        assert r.chosen == SeparatorKind.WHOLE
+
+    def test_strips_surrounding_whitespace(self):
+        r = split_input("   hello\n  ", SeparatorKind.WHOLE)
+        assert r.rows == ["hello"]
+
+    def test_empty_returns_empty_list(self):
+        r = split_input("", SeparatorKind.WHOLE)
+        assert r.rows == []
+
+    def test_whitespace_only_returns_empty(self):
+        r = split_input("   \n\n  ", SeparatorKind.WHOLE)
+        assert r.rows == []
+
+
 class TestResultShape:
     def test_returns_split_result(self):
         r = split_input("a\nb", SeparatorKind.NEWLINE)

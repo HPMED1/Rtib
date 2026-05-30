@@ -10,7 +10,7 @@ from __future__ import annotations
 from PySide6.QtCore import QThread, Signal
 
 from rtib.core.ollama_client import OllamaClient, OllamaError
-from rtib.core.pipeline import RowResult, sort_row, suggest_headers
+from rtib.core.pipeline import RowResult, bulk_sort, sort_row, suggest_headers
 from rtib.core.schema import Header
 
 
@@ -76,6 +76,7 @@ class SortWorker(QThread):
         model: str,
         rows: list[str],
         headers: list[Header],
+        bulk_mode: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -83,6 +84,7 @@ class SortWorker(QThread):
         self._model = model
         self._rows = rows
         self._headers = headers
+        self._bulk_mode = bulk_mode
         self._cancelled = False
 
     def cancel(self) -> None:
@@ -91,6 +93,50 @@ class SortWorker(QThread):
     _MAX_CONSECUTIVE_FAILURES = 3
 
     def run(self) -> None:
+        if self._bulk_mode:
+            self._run_bulk()
+            return
+        self._run_per_row()
+
+    def _run_bulk(self) -> None:
+        text = self._rows[0] if self._rows else ""
+        try:
+            results = bulk_sort(self._client, self._model, text, self._headers)
+        except Exception as exc:
+            if not self._cancelled:
+                self.failed.emit(f"Unexpected: {exc}")
+            return
+        if self._cancelled:
+            return
+
+        # bulk_sort returns a single parse-error RowResult on transport/parse
+        # failure; surface that as a worker-level failure rather than letting
+        # the user see an empty-but-not-failed result table.
+        if len(results) == 1 and not results[0].ok:
+            self.failed.emit(
+                results[0].error
+                or "Bulk extraction failed."
+            )
+            return
+
+        if not results:
+            self.failed.emit(
+                "Model returned 0 records. The input may be too large for the "
+                "model's context window, or the headers may not match anything "
+                "in the text. Try a smaller chunk, a stronger model, or clearer "
+                "header descriptions."
+            )
+            return
+
+        total = len(results)
+        for i, result in enumerate(results):
+            if self._cancelled:
+                return
+            self.row_done.emit(i, result)
+            self.progress.emit(i + 1, total)
+        self.finished_ok.emit()
+
+    def _run_per_row(self) -> None:
         total = len(self._rows)
         consecutive_failures = 0
         for i, row in enumerate(self._rows):

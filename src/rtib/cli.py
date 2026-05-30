@@ -36,7 +36,7 @@ from rich.progress import (
 from rtib import __app_name__, __version__
 from rtib.core.exporters import export_csv, export_json, export_xlsx
 from rtib.core.ollama_client import OllamaClient, OllamaError
-from rtib.core.pipeline import sort_row, suggest_headers
+from rtib.core.pipeline import bulk_sort, sort_row, suggest_headers
 from rtib.core.schema import Header
 from rtib.core.settings import AppSettings
 from rtib.core.splitting import SeparatorKind, split_input
@@ -85,7 +85,8 @@ def root(
     ),
     separator: str = typer.Option(
         "auto", "--separator",
-        help="How to split the input into rows: auto | newline | comma | semicolon | tab | pipe | <regex>.",
+        help="How to split the input into rows: auto | whole | newline | comma | semicolon | tab | pipe | <regex>. "
+             "`whole` sends the entire input as one model call (bulk extraction).",
     ),
     version: bool = typer.Option(
         False, "--version", "-V", help="Show version and exit.",
@@ -158,14 +159,20 @@ def _run_batch(
         )
         raise typer.Exit(code=2)
 
-    rows, chosen = _read_rows(input_path, separator)
+    rows, chosen, bulk_mode = _read_rows(input_path, separator)
     if not rows:
         _CONSOLE.print(f"[red]Input file is empty or unsplittable:[/red] {input_path}")
         raise typer.Exit(code=2)
-    _CONSOLE.print(
-        f"Read [green]{len(rows)} rows[/green] from [cyan]{input_path.name}[/cyan] "
-        f"(separator: {chosen})"
-    )
+    if bulk_mode:
+        _CONSOLE.print(
+            f"Read [green]{len(rows[0]):,} chars[/green] from "
+            f"[cyan]{input_path.name}[/cyan] (bulk mode: model decides record count)"
+        )
+    else:
+        _CONSOLE.print(
+            f"Read [green]{len(rows)} rows[/green] from [cyan]{input_path.name}[/cyan] "
+            f"(separator: {chosen})"
+        )
 
     client = OllamaClient(settings.ollama_url, timeout_s=settings.request_timeout_s)
     if not client.health_check():
@@ -184,7 +191,10 @@ def _run_batch(
             _save_schema(save_schema_path, headers, hint)
             _CONSOLE.print(f"Saved schema to [cyan]{save_schema_path}[/cyan]")
 
-    results = _sort_all(client, sort_model, rows, headers)
+    if bulk_mode:
+        results = _bulk_extract(client, sort_model, rows[0], headers)
+    else:
+        results = _sort_all(client, sort_model, rows, headers)
 
     bad = sum(1 for r in results if not r.ok)
     include_status = bad > 0
@@ -201,6 +211,7 @@ def _run_batch(
 
 _NAMED_SEPARATORS: dict[str, SeparatorKind] = {
     "auto": SeparatorKind.AUTO,
+    "whole": SeparatorKind.WHOLE,
     "newline": SeparatorKind.NEWLINE,
     "comma": SeparatorKind.COMMA,
     "semicolon": SeparatorKind.SEMICOLON,
@@ -209,8 +220,11 @@ _NAMED_SEPARATORS: dict[str, SeparatorKind] = {
 }
 
 
-def _read_rows(path: Path, separator: str) -> tuple[list[str], str]:
-    """Read and split the input file. Returns (rows, label of separator used)."""
+def _read_rows(path: Path, separator: str) -> tuple[list[str], str, bool]:
+    """Read and split the input file.
+
+    Returns (rows, label of separator used, bulk_mode flag).
+    """
     text = path.read_text(encoding="utf-8", errors="replace")
     sep_key = separator.lower().strip()
     if sep_key in _NAMED_SEPARATORS:
@@ -220,7 +234,8 @@ def _read_rows(path: Path, separator: str) -> tuple[list[str], str]:
         # Treat unknown values as a custom regex.
         result = split_input(text, SeparatorKind.REGEX, custom_pattern=separator)
     label = result.chosen.value if result.chosen != SeparatorKind.REGEX else f"regex {separator!r}"
-    return result.rows, label
+    bulk_mode = result.chosen == SeparatorKind.WHOLE
+    return result.rows, label, bulk_mode
 
 
 def _load_schema(path: Path) -> list[Header]:
@@ -286,6 +301,33 @@ def _auto_suggest(
     for h in headers:
         _CONSOLE.print(f"  • [bold]{h.name}[/bold] — {h.description}")
     return headers
+
+
+def _bulk_extract(
+    client: OllamaClient,
+    model: str,
+    text: str,
+    headers: list[Header],
+) -> list:
+    """Bulk-mode CLI driver: indeterminate spinner for the one big call."""
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        console=_CONSOLE,
+        transient=False,
+    )
+    with progress:
+        task = progress.add_task(
+            f"Bulk extracting with [cyan]{model}[/cyan]", total=None
+        )
+        results = bulk_sort(client, model, text, headers)
+        progress.update(task, completed=1, total=1)
+    bad = sum(1 for r in results if not r.ok)
+    _CONSOLE.print(
+        f"Model returned [green]{len(results) - bad}[/green] records"
+        + (f" ([red]{bad} failed[/red])" if bad else "")
+    )
+    return results
 
 
 def _sort_all(

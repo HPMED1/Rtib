@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from rtib.core.schema import (
     Header,
+    bulk_records_schema,
     header_suggestion_schema,
     row_schema,
     slugify,
@@ -80,6 +81,29 @@ class TestRowSchema:
         schema = row_schema([])
         assert schema["properties"] == {}
         assert schema["required"] == []
+
+
+class TestBulkRecordsSchema:
+    def test_wraps_row_schema_in_records_array(self):
+        headers = [Header(name="Title"), Header(name="Year")]
+        schema = bulk_records_schema(headers)
+        assert schema["type"] == "object"
+        assert "records" in schema["properties"]
+        records_prop = schema["properties"]["records"]
+        assert records_prop["type"] == "array"
+        # Each item is the row schema
+        item_schema = records_prop["items"]
+        assert item_schema["type"] == "object"
+        assert set(item_schema["properties"].keys()) == {"title", "year"}
+
+    def test_records_is_required(self):
+        schema = bulk_records_schema([Header(name="X")])
+        assert "records" in schema["required"]
+
+    def test_inner_fields_nullable(self):
+        schema = bulk_records_schema([Header(name="X")])
+        x_prop = schema["properties"]["records"]["items"]["properties"]["x"]
+        assert x_prop["type"] == ["string", "null"]
 
 
 class TestHeaderSuggestionSchema:

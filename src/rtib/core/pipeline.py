@@ -11,7 +11,12 @@ import json
 from dataclasses import dataclass
 
 from rtib.core.ollama_client import OllamaClient, OllamaError
-from rtib.core.schema import Header, header_suggestion_schema, row_schema
+from rtib.core.schema import (
+    Header,
+    bulk_records_schema,
+    header_suggestion_schema,
+    row_schema,
+)
 
 _HEADER_SUGGESTION_SYSTEM = """You are a data architect helping a user clean up messy unstructured text.
 
@@ -38,6 +43,21 @@ Rules:
 - You MAY derive a value when it can be confidently computed from the input (e.g. uppercase a code, compose two parts).
 - If you genuinely cannot determine a field from the input, set it to ``null``. Never invent values.
 - Never copy a value into the wrong field.
+- Output strictly matches the JSON schema you've been given.
+"""
+
+
+_BULK_SORT_SYSTEM = """You extract structured records from a chunk of unstructured text.
+
+The text may contain MANY records separated by ANY mix of newlines, commas, semicolons, spaces, tabs, pipes, or other delimiters. Records may even appear on the same line.
+
+For each distinct record you can identify, produce one JSON object matching the per-record schema. Put all of them into the ``records`` array.
+
+Rules:
+- Extract or derive each field for each record. Set a field to ``null`` if you genuinely can't determine it. Never invent values.
+- Return EVERY distinct record you can find. Do not summarize, deduplicate semantically, or skip ones that look messy.
+- Never copy a value into the wrong field of a record.
+- Never repeat the same record twice.
 - Output strictly matches the JSON schema you've been given.
 """
 
@@ -136,3 +156,64 @@ def sort_row(
             # Schema should prevent this but be defensive.
             values[h.key] = str(v)
     return RowResult(raw=row, values=values)
+
+
+def bulk_sort(
+    client: OllamaClient,
+    model: str,
+    text: str,
+    headers: list[Header],
+) -> list[RowResult]:
+    """One model call returning every record it finds in ``text``.
+
+    Used when the input is too jumbled to split deterministically (mixed
+    separators, multiple records per line, etc.). Returns one ``RowResult``
+    per record. If the call itself failed, returns a single ``RowResult`` in
+    parse-error state so the caller can show the user what went wrong.
+    """
+    headers_block = "\n".join(
+        f"- {h.key} ({h.name}): {h.description or 'no description'}"
+        for h in headers
+    )
+    prompt = (
+        f"Headers:\n{headers_block}\n\n"
+        f"Text:\n{text}\n\n"
+        f"Find every distinct record in the text and return them under \"records\"."
+    )
+
+    try:
+        resp = client.generate(
+            model=model,
+            prompt=prompt,
+            system=_BULK_SORT_SYSTEM,
+            schema=bulk_records_schema(headers),
+            options={"temperature": 0.0},
+        )
+    except OllamaError as exc:
+        return [RowResult(raw=text, values=None, error=str(exc))]
+
+    raw_response = resp.get("response", "")
+    try:
+        parsed = json.loads(raw_response)
+    except json.JSONDecodeError as exc:
+        return [RowResult(raw=text, values=None, error=f"Invalid JSON: {exc}")]
+
+    records = parsed.get("records", [])
+    if not isinstance(records, list):
+        return [RowResult(raw=text, values=None, error="Expected an array under 'records'.")]
+
+    results: list[RowResult] = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        values: dict[str, str | None] = {}
+        for h in headers:
+            v = rec.get(h.key)
+            if v is None or isinstance(v, str):
+                values[h.key] = v
+            else:
+                values[h.key] = str(v)
+        # We don't know which slice of the input produced each record, so leave
+        # raw blank. The user knows it was bulk mode by context.
+        results.append(RowResult(raw="", values=values))
+    return results
