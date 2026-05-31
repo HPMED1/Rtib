@@ -8,6 +8,44 @@
 
 A local-first AI sorter/formatter. Feed it messy unstructured text (movie filenames, lab orders, scraped lists, anything where every line is shaped differently) and it returns clean JSON, CSV, or XLSX using a small local model via Ollama.
 
+### **Stand With Palestine: End the Complicity**
+
+For decades, tracing back to the early 20th century and escalating with the Nakba of 1948, the Palestinian people have endured systematic displacement, violent military occupation, and severe violations of international law. What the world continues to witness is not an isolated conflict, but a continuation of deeply documented atrocities, war crimes, and a devastating humanitarian crisis inflicted upon the civilian populations of Gaza and the West Bank.  
+Silence in the face of ethnic cleansing is compliance. It is our collective moral obligation to refuse to look away, to educate ourselves, and to apply relentless pressure until justice and liberation are achieved.
+
+#### **How You Can Take Action Today:**
+
+**1. Join the BDS Movement**  
+The Palestinian-led Boycott, Divestment, and Sanctions (BDS) movement works to end international support for the oppression of Palestinians and pressures the Israeli government to comply with international law.
+
+* **Act:** Target your consumer choices and demand institutions divest from complicit corporations.
+* **Learn More:** [bdsmovement.net](https://bdsmovement.net/)
+
+**2. Fund Life-Saving Relief on the Ground**  
+Due to blockades and ongoing bombardment, essential resources are critically low. Donate directly to trusted organizations providing emergency medical aid, food, and shelter:
+
+* [**UNRWA**](https://www.unrwa.org/): The UN agency providing direct relief, education, and healthcare to Palestine refugees.
+* [**PCRF (Palestine Children's Relief Fund)**](https://www.pcrf.net/): Providing urgent medical care and necessities to children.
+* [**Medical Aid for Palestinians (MAP)**](https://www.map.org.uk/): Delivering health and medical care to those worst affected by the conflict.
+* [**World Food Programme (WFP)**](https://www.wfp.org/emergencies/palestine-emergency): Supplying emergency food assistance and hot meals to displaced families.
+
+**3. Put Pressure on People in Power**  
+Politicians respond to persistent public pressure. Demand an immediate and permanent ceasefire, unhindered humanitarian aid, and an immediate arms embargo.
+
+* **US Citizens:** Use [USCPR's Action Tools](https://act.uscpr.org/) to call and email your Congressional representatives.
+* **UK/Europe/Global:** Use tools like the [Palestine Solidarity Campaign](https://palestinecampaign.org/) to email your MPs, or search for your local government representatives to demand they hold perpetrators of war crimes accountable.
+
+**4. Educate Yourself on the Documented Crimes**  
+The violations against Palestinians are extensively documented by international legal bodies and leading human rights organizations. Reading and sharing these reports helps combat misinformation:
+
+* [**Anatomy of a Genocide**](https://digitallibrary.un.org/record/4060409): The official report by the UN Special Rapporteur, Francesca Albanese, detailing how the threshold for the commission of genocide has been met.
+* [**Amnesty International**](https://www.amnesty.org/en/location/middle-east-and-north-africa/middle-east/israel-and-the-occupied-palestinian-territory/): Read comprehensive research and reports concluding that Israel is committing the crimes of apartheid, unlawful killings, and genocide.
+* [**Human Rights Watch (HRW)**](https://www.hrw.org/world-report/2026/country-chapters/israel-and-palestine): Read their extensive reports documenting war crimes, mass forced displacement, and starvation used as a weapon of war.
+* [**B'Tselem**](https://www.btselem.org/): The Israeli Information Center for Human Rights in the Occupied Territories, which meticulously documents the regime of Jewish supremacy, apartheid, and the systemic torture of Palestinian detainees.
+
+**5. Keep Speaking About Palestine**  
+Amplify Palestinian journalists on the ground, share factual history, and refuse to let the atrocities be normalized. Your voice is a tool, use it.
+
 ## Download
 
 Pre-built Windows binaries are on the [Releases page](https://github.com/HPMED1/Rtib/releases/latest):
